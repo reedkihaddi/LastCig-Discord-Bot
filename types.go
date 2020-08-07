@@ -7,5 +7,5 @@ type Voice struct {
 	VoiceConnection *discordgo.VoiceConnection
 	Channel         string
 	Guild           string
-	PlayerStatus    int
+	PlayerStatus    bool
 }

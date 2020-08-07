@@ -1,15 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"os"
 	"os/signal"
 	"syscall"
+	"strings"
+	"github.com/Andreychik32/ytdl"
+	
 )
 
-//const token = "NzQwODE5MjI5MzU5NDcyNjUw.XyujrA.SPXhJLd1YvvQYZCEigwG7YCJf0A"
-const token = "NzQwOTk5MzIxMTQ2NjIyMDEz.XyxLZQ.EMbSESn4Syv4UFz92HNi5_NGc08"
+const token = "NzQwODE5MjI5MzU5NDcyNjUw.XyujrA.SPXhJLd1YvvQYZCEigwG7YCJf0A"
+//const token = "NzQwOTk5MzIxMTQ2NjIyMDEz.XyxLZQ.EMbSESn4Syv4UFz92HNi5_NGc08"
+var prefix = "!"
+
+var voiceConnections[] Voice
+
 func main() {
 	// Creating a new bot with the specified token.
 	dg, err := discordgo.New("Bot " + token)
@@ -37,75 +45,29 @@ func main() {
 }
 
 func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
-	
-	// channel, err := s.State.Channel(m.ChannelID)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// guild, err := s.State.Guild(channel.GuildID)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// fmt.Println(guild)
 
-	// guild, err := s.State.Guild(m.GuildID)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// for _, guild := range s.State.Guilds{
-	// 	channels, _ := s.GuildChannels(guild.ID)
-	// 	for _, c := range channels {
-	// 		if c.Type == discordgo.ChannelTypeGuildVoice{
-	// 		fmt.Printf("Name of channel is: %s \n", c.Name)
-	// 		}
-	// 	}
-	// }
-
-	// if m.Author.ID == s.State.User.ID{
-	// 	return
-	// }
-
-	// if m.Content == "ping" {
-	// 	guild, err := s.State.Guild(m.GuildID)
-	// 	if err != nil {
-	// 		fmt.Println("Error")
-	// 	}
-	// 	fmt.Println(guild)
-	//findVoiceChannel(s, m.GuildID, m.ChannelID, m.Author.ID)
-	// 	s.ChannelMessageSend(m.ChannelID, "pong")
-
-	// }
-
-	// if m.Content == "pong" {
-	// 	s.ChannelMessageSend(m.ChannelID, "ping")
-	// }
-
-	// if m.Author.ID == s.State.User.ID {
-	// 	return
-	// }
-	// fmt.Printf("Channel ID is: %s ",m.ChannelID)
-	// fmt.Printf("Guild ID is: %s\n",m.GuildID)
-	// //fmt.Println(s.State.Channel(m.ChannelID))
 	g, err := s.State.Guild(m.GuildID)
 	if err != nil {
 		fmt.Printf("Guild not found.")
-		// Could not find guild.
 		return
 	}
+
 	voiceChannel := findVoiceChannelID(g, m)
-	fmt.Println("CHANNEL ID:::::: ",voiceChannel)
-	fmt.Printf("%+v\n",g)
-	// for _, vs := range g.VoiceStates {
-	// 	if vs.UserID == m.Author.ID {
-	// 		fmt.Println(1)
-	// 	}
-	// }
+
+	var commandArgs []string = strings.Split(m.Content, " ")
+	if commandArgs[0] == prefix + "play" {
+		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
+	}
+	if commandArgs[0] == prefix + "youtube" {
+		go playYoutubeLink(commandArgs[1], m.GuildID, voiceChannel)
+	}
+
+	fmt.Printf("Voice Channel used is in: %s\n", voiceChannel)
 
 }
+
 func findVoiceChannelID(guild *discordgo.Guild, message *discordgo.MessageCreate) string {
 	var channelID string
-
 	for _, vs := range guild.VoiceStates {
 		if vs.UserID == message.Author.ID {
 			channelID = vs.ChannelID
@@ -114,36 +76,43 @@ func findVoiceChannelID(guild *discordgo.Guild, message *discordgo.MessageCreate
 	return channelID
 }
 
-func findVoiceChannel(bot *discordgo.Session, guild string, channel string, author string) {
-	//var voiceConnection Voice
-	//var index int
-	//index = 1
-	// fmt.Println(bot.State.Guild)
-	
-	// channels, _ := bot.GuildChannels(guild)
-	// voice,err := bot.State.Guild(guild)
-	// if err != nil {
-	// 	fmt.Println("Error")
-	// }
-	// fmt.Println(voice.Name)
-	// for _, v := range voice.VoiceStates{
-	// 	fmt.Println(v.UserID)
-	// }
-
-	for _, g := range bot.State.Guilds {
-		for _, v := range g.VoiceStates {
-			if v.UserID == author {
-				fmt.Println(v.ChannelID)
-			}
-		}
+func connectToVoiceChannel(bot *discordgo.Session, guild string, channel string) Voice {
+	vs, err := bot.ChannelVoiceJoin(guild, channel, false, true)
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	// for _, c := range channels {
-	// 	if c.Type == discordgo.ChannelTypeGuildVoice{
-	// 		fmt.Printf("ID of channel is: %s \n ", c.ID)
-	// 	}
-	// }
-	
-	//return voiceConnection, index
+	return Voice{
+		VoiceConnection: vs,
+		Channel:         channel,
+		Guild:           guild,
+		PlayerStatus:    false,
+	}
 }
 
+func playYoutubeLink(link string, guild string, channel string){
+	ctx := context.Background()
+	videoInfo, err := ytdl.GetVideoInfo(ctx,link)
+	fmt.Printf("%+v\n",videoInfo)
+	if err != nil {
+		fmt.Println(err)
+		return // Returning to avoid crash when video informations could not be found
+	}
+	client := ytdl.DefaultClient
+	for _, format := range videoInfo.Formats {
+		//fmt.Printf("%+v\n",format)
+		if format.AudioEncoding == "opus" || format.AudioEncoding == "aac" || format.AudioEncoding == "vorbis" {
+			url := format.URL
+			fmt.Println(url)
+		}	
+	}
+	file, err := os.Create("2" + ".mp4")
+	if err != nil {
+		fmt.Println("1",err)
+	}
+	defer file.Close()
+
+	err = client.Download(ctx, videoInfo, videoInfo.Formats[0], file)
+	if err != nil {
+		fmt.Println("1",err)
+	}
+}
