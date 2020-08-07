@@ -9,3 +9,12 @@ type Voice struct {
 	Guild           string
 	PlayerStatus    bool
 }
+
+// Song discord.
+type Song struct {
+	Link    string
+	Type    string
+	Guild   string
+	Channel string
+}
+
