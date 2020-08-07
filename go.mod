@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/Andreychik32/ytdl v1.0.4
-	github.com/bwmarrin/dgvoice v0.0.0-20170706020935-3c939eca8b2f // indirect
+	github.com/bwmarrin/dgvoice v0.0.0-20170706020935-3c939eca8b2f
 	github.com/bwmarrin/discordgo v0.22.0
 	github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8
 	github.com/gorilla/websocket v1.4.2 // indirect

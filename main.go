@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/bwmarrin/dgvoice"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,11 +13,11 @@ import (
 	
 )
 
-const token = "NzQwODE5MjI5MzU5NDcyNjUw.XyujrA.SPXhJLd1YvvQYZCEigwG7YCJf0A"
-//const token = "NzQwOTk5MzIxMTQ2NjIyMDEz.XyxLZQ.EMbSESn4Syv4UFz92HNi5_NGc08"
+const token = "NzQwODE5MjI5MzU5NDcyNjUw.XyujrA.M1bUfnvLF1aHzkoAs6GanMpYPqo"
 var prefix = "!"
 
 var voiceConnections[] Voice
+var stopChannel chan bool
 
 func main() {
 	// Creating a new bot with the specified token.
@@ -52,17 +53,20 @@ func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	voiceChannel := findVoiceChannelID(g, m)
+	//voiceChannel := findVoiceChannelID(g, m)
 
 	var commandArgs []string = strings.Split(m.Content, " ")
 	if commandArgs[0] == prefix + "play" {
+		voiceChannel := findVoiceChannelID(g, m)
 		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
 	}
 	if commandArgs[0] == prefix + "youtube" {
+		voiceChannel := findVoiceChannelID(g, m)
+		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
 		go playYoutubeLink(commandArgs[1], m.GuildID, voiceChannel)
 	}
 
-	fmt.Printf("Voice Channel used is in: %s\n", voiceChannel)
+	//fmt.Printf("Voice Channel used is in: %s\n", voiceChannel)
 
 }
 
@@ -97,22 +101,46 @@ func playYoutubeLink(link string, guild string, channel string){
 		fmt.Println(err)
 		return // Returning to avoid crash when video informations could not be found
 	}
-	client := ytdl.DefaultClient
+	//client := ytdl.DefaultClient
 	for _, format := range videoInfo.Formats {
 		//fmt.Printf("%+v\n",format)
 		if format.AudioEncoding == "opus" || format.AudioEncoding == "aac" || format.AudioEncoding == "vorbis" {
 			url := format.URL
 			fmt.Println(url)
+			go playAudioFile(url, guild, channel, "youtube")
+			return 
 		}	
 	}
-	file, err := os.Create("2" + ".mp4")
-	if err != nil {
-		fmt.Println("1",err)
-	}
-	defer file.Close()
+	// file, err := os.Create("2" + ".mp4")
+	// if err != nil {
+	// 	fmt.Println("1",err)
+	// }
+	// defer file.Close()
 
-	err = client.Download(ctx, videoInfo, videoInfo.Formats[0], file)
-	if err != nil {
-		fmt.Println("1",err)
+	// err = client.Download(ctx, videoInfo, videoInfo.Formats[0], file)
+	// if err != nil {
+	// 	fmt.Println("1",err)
+	// }
+}
+
+func findVoiceConnection(guild string, channel string) (Voice, int) {
+	var voiceConnection Voice
+	var index int
+	for i, vc := range voiceConnections {
+		if vc.Guild == guild {
+			voiceConnection = vc
+			index = i
+		}
+	}
+	return voiceConnection, index
+}
+
+func playAudioFile(file string, guild string, channel string, linkType string) {
+	voiceConnection, index := findVoiceConnection(guild, channel)
+	switch voiceConnection.PlayerStatus {
+	case false:
+		voiceConnections[index].PlayerStatus = true
+		dgvoice.PlayAudioFile(voiceConnection.VoiceConnection, file, stopChannel)
+		voiceConnections[index].PlayerStatus = false
 	}
 }
