@@ -10,11 +10,17 @@ type Voice struct {
 	PlayerStatus    bool
 }
 
-// Song discord.
-type Song struct {
-	Link    string
-	Type    string
-	Guild   string
-	Channel string
+// SongList check.
+type SongList map[string]SongData
+
+// SongID discord.
+type SongID struct {
+	ID SongData
 }
 
+// SongData struct.
+type SongData struct {
+	Title string
+	Link string
+	Describe string
+}
