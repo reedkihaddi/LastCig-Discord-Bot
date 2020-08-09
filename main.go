@@ -23,7 +23,7 @@ import (
 // Prefix for the command which bot searches for.
 var prefix = "!lc"
 // BOT token.
-const token = "NzQwODE5MjI5MzU5NDcyNjUw.XyujrA.UDisrwBRMmg8x9f52UePP_IozV0"
+const token = "TOKEN"
 // A list to track currently connected voice channels.
 var voiceConnections[] Voice
 // A struct that contains list of songs.
