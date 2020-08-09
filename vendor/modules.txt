@@ -1,0 +1,36 @@
+# github.com/Andreychik32/ytdl v1.0.4
+## explicit
+github.com/Andreychik32/ytdl
+# github.com/antchfx/jsonquery v1.1.4
+github.com/antchfx/jsonquery
+# github.com/antchfx/xpath v1.1.7
+github.com/antchfx/xpath
+# github.com/bwmarrin/dgvoice v0.0.0-20170706020935-3c939eca8b2f
+## explicit
+# github.com/bwmarrin/discordgo v0.22.0
+## explicit
+github.com/bwmarrin/discordgo
+# github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8
+## explicit
+# github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
+github.com/golang/groupcache/lru
+# github.com/gorilla/websocket v1.4.2
+## explicit
+github.com/gorilla/websocket
+# github.com/rs/zerolog v1.19.0
+github.com/rs/zerolog
+github.com/rs/zerolog/internal/cbor
+github.com/rs/zerolog/internal/json
+github.com/rs/zerolog/log
+# golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
+## explicit
+golang.org/x/crypto/internal/subtle
+golang.org/x/crypto/nacl/secretbox
+golang.org/x/crypto/poly1305
+golang.org/x/crypto/salsa20/salsa
+# golang.org/x/sys v0.0.0-20200806060901-a37d78b92225
+## explicit
+golang.org/x/sys/cpu
+# layeh.com/gopus v0.0.0-20161224163843-0ebf989153aa
+## explicit
+layeh.com/gopus

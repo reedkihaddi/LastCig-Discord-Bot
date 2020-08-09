@@ -85,12 +85,12 @@ func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(10))
+		n := strconv.Itoa(y1.Intn(50))
 		voiceChannel := findVoiceChannelID(g, m)
 		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
 		go playYoutubeLink(s, songs[n].Link, m.GuildID, voiceChannel, m.ChannelID, n)
 
-	} else if commandArgs[0] == prefix && commandArgs[1] == "disconnect" {
+	} else if commandArgs[0] == prefix && commandArgs[1] == "d" {
 		
 		go disconnectFromVoiceChannel(m.GuildID)
 
@@ -98,13 +98,19 @@ func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// To get a random number. 
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(10))
+		n := strconv.Itoa(y1.Intn(50))
 		voiceChannel := findVoiceChannelID(g, m)
 		// Stop the current audio.
 		stopChannel <- true
 		// Play a new random song.
 		go playYoutubeLink(s, songs[n].Link, m.GuildID, voiceChannel, m.ChannelID, n)
 	
+	} else if commandArgs[0] == "play" {
+
+		voiceChannel := findVoiceChannelID(g, m)
+		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
+		go playYoutubeLink(s, commandArgs[1], m.GuildID, voiceChannel, m.ChannelID, "3")
+
 	} else if commandArgs[0] == prefix && commandArgs[1] == "help" {
 
 		var messageEmbed discordgo.MessageEmbed
@@ -222,7 +228,7 @@ func playAudioFile(bot *discordgo.Session, file string, guild string, channel st
 		messageEmbedFooter.Text = "Duration: " + length
 		messageEmbed.Footer = &messageEmbedFooter
 		p := &messageEmbed
-		
+
 		bot.ChannelMessageSendEmbed(textChannel, p)
 
 		dgvoice.PlayAudioFile(voiceConnection.VoiceConnection, file, stopChannel)
@@ -230,7 +236,7 @@ func playAudioFile(bot *discordgo.Session, file string, guild string, channel st
 		// Generate a random number to play a new song.
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(10))
+		n := strconv.Itoa(y1.Intn(50))
 
 		// Play a new song.
 		go playYoutubeLink(bot, songs[n].Link, guild, channel, textChannel, n)
