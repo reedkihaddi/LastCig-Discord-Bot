@@ -15,6 +15,7 @@ import (
 	"time"
 	"strconv"
 	"io/ioutil"
+	"net/http"
 )
 
 
@@ -31,7 +32,8 @@ var stopChannel chan bool
 
 
 func main() {
-
+	http.HandleFunc("/", HelloServer)
+    http.ListenAndServe(":8080", nil)
 	file, _ := ioutil.ReadFile("songs.json")
 	_ = json.Unmarshal([]byte(file), &songs)
 
@@ -67,6 +69,10 @@ func main() {
 
 }
 
+// HelloServer for Heroku
+func HelloServer(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+}
 
 func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 
