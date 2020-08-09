@@ -15,7 +15,8 @@ import (
 	"time"
 	"strconv"
 	"io/ioutil"
-	"net/http"
+	"errors"
+
 )
 
 
@@ -32,8 +33,7 @@ var stopChannel chan bool
 
 
 func main() {
-	http.HandleFunc("/", HelloServer)
-    http.ListenAndServe(":8080", nil)
+	
 	file, _ := ioutil.ReadFile("songs.json")
 	_ = json.Unmarshal([]byte(file), &songs)
 
@@ -69,17 +69,14 @@ func main() {
 
 }
 
-// HelloServer for Heroku
-func HelloServer(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
-}
+
 
 func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// Find the guild from where the message came from.
 	g, err := s.State.Guild(m.GuildID)
 	if err != nil {
-		fmt.Printf("Guild not found.")
+		fmt.Printf("Guild not found.\n")
 		return
 	}
 
@@ -91,31 +88,66 @@ func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(50))
-		voiceChannel := findVoiceChannelID(g, m)
+		n := strconv.Itoa(y1.Intn(99))
+		voiceChannel, err := findVoiceChannelID(g, m)
+		if err != nil {
+			var messageEmbed discordgo.MessageEmbed
+			messageEmbed.Description = "You need to join a voice channel."
+			s.ChannelMessageSendEmbed(m.ChannelID, &messageEmbed)
+			return
+		}
+		channelName, err := s.State.Channel(voiceChannel)
+		if err != nil {
+			fmt.Println("Couldn't get voice channel name.")
+		}
 		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
+		var messageEmbed discordgo.MessageEmbed
+		messageEmbed.Description = "Joined " + channelName.Name
+		fmt.Printf("Joined %s of %s.\n", channelName.Name, g.Name)
+		s.ChannelMessageSendEmbed(m.ChannelID, &messageEmbed)
 		go playYoutubeLink(s, songs[n].Link, m.GuildID, voiceChannel, m.ChannelID, n)
 
 	} else if commandArgs[0] == prefix && commandArgs[1] == "d" {
 		
 		go disconnectFromVoiceChannel(m.GuildID)
+		if err != nil {
+			fmt.Println("Error getting guild.")
+		}
+		var messageEmbed discordgo.MessageEmbed
+		messageEmbed.Description = "Disconnected from the channel."
+		s.ChannelMessageSendEmbed(m.ChannelID, &messageEmbed)
+		fmt.Printf("Disconnected from %s.\n", m.GuildID)
+
+		return
 
 	} else if commandArgs[0] == prefix && commandArgs[1] == "skip" {
 		// To get a random number. 
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(50))
-		voiceChannel := findVoiceChannelID(g, m)
+		n := strconv.Itoa(y1.Intn(99))
+		voiceChannel,err := findVoiceChannelID(g, m)
+		if err != nil {
+			var messageEmbed discordgo.MessageEmbed
+			messageEmbed.Description = "You need to join a voice channel."
+			s.ChannelMessageSendEmbed(m.ChannelID, &messageEmbed)
+			return
+		}
 		// Stop the current audio.
 		stopChannel <- true
 		// Play a new random song.
 		go playYoutubeLink(s, songs[n].Link, m.GuildID, voiceChannel, m.ChannelID, n)
 	
-	} else if commandArgs[0] == "play" {
-
-		voiceChannel := findVoiceChannelID(g, m)
+	} else if commandArgs[0] == prefix && commandArgs[1] == "play_"  {
+		
+		voiceChannel, err := findVoiceChannelID(g, m)
+		if err != nil {
+			var messageEmbed discordgo.MessageEmbed
+			messageEmbed.Description = "You need to join a voice channel."
+			s.ChannelMessageSendEmbed(m.ChannelID, &messageEmbed)
+			return
+		}
 		voiceConnections = append(voiceConnections,connectToVoiceChannel(s, m.GuildID, voiceChannel))
-		go playYoutubeLink(s, commandArgs[1], m.GuildID, voiceChannel, m.ChannelID, "3")
+		go playYoutubeLink(s, songs[commandArgs[2]].Link, m.GuildID, voiceChannel, m.ChannelID, commandArgs[2])
 
 	} else if commandArgs[0] == prefix && commandArgs[1] == "help" {
 
@@ -128,26 +160,29 @@ func createMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		p := &messageEmbed
 
 		s.ChannelMessageSendEmbed(m.ChannelID, p)
+		
 	}
 }
 
 
 // Find the voice channel ID of the author.
-func findVoiceChannelID(guild *discordgo.Guild, message *discordgo.MessageCreate) string {
+func findVoiceChannelID(guild *discordgo.Guild, message *discordgo.MessageCreate) (string, error) {
 	var channelID string
+	myErr := errors.New("can't join voice channel")
 	for _, vs := range guild.VoiceStates {
 		if vs.UserID == message.Author.ID {
 			channelID = vs.ChannelID
+			return channelID, nil
 		}
 	}
-	return channelID
+	return channelID, myErr
 }
 
 
 // Connect to the voice channel and return Voice struct.
 func connectToVoiceChannel(bot *discordgo.Session, guild string, channel string) Voice {
 	vs, err := bot.ChannelVoiceJoin(guild, channel, false, true)
-
+	
 	checkForDoubleVoiceConnection(guild, channel)
 
 	if err != nil {
@@ -221,9 +256,12 @@ func playAudioFile(bot *discordgo.Session, file string, guild string, channel st
 
 	switch voiceConnection.PlayerStatus {
 	case false:
-		
+		err := checkUserPresent(bot, index)
+		if err != nil {
+			fmt.Printf("Disconnected channel due to lack of inactivity from %s.\n", guild)
+			return
+		}
 		voiceConnections[index].PlayerStatus = true
-		fmt.Println(voiceConnections)
 		
 		var messageEmbed discordgo.MessageEmbed
 		var messageEmbedFooter discordgo.MessageEmbedFooter
@@ -238,16 +276,15 @@ func playAudioFile(bot *discordgo.Session, file string, guild string, channel st
 		bot.ChannelMessageSendEmbed(textChannel, p)
 
 		dgvoice.PlayAudioFile(voiceConnection.VoiceConnection, file, stopChannel)
-
+		
 		// Generate a random number to play a new song.
 		x1 := rand.NewSource(time.Now().UnixNano())
 		y1 := rand.New(x1) 
-		n := strconv.Itoa(y1.Intn(50))
+		n := strconv.Itoa(y1.Intn(99))
 
 		// Play a new song.
 		go playYoutubeLink(bot, songs[n].Link, guild, channel, textChannel, n)
 		voiceConnections[index].PlayerStatus = false
-		fmt.Println(voiceConnections)
 	}
 }
 
@@ -260,4 +297,31 @@ func disconnectFromVoiceChannel(guild string) {
 			voiceConnections = append(voiceConnections[:index], voiceConnections[index+1:]...)
 		}
 	}
+}
+
+func checkUserPresent(bot *discordgo.Session, index int) error {
+	myErr := errors.New("disconnected from voice channel")
+	guildID := voiceConnections[index].Guild
+	channelID := voiceConnections[index].Channel
+	guildStruct, err := bot.State.Guild(guildID)
+	if err != nil {
+		fmt.Println("Error finding the guild.")
+		disconnectFromVoiceChannel(guildID)
+		return nil
+	}
+	var check bool = false
+	for _, vs := range guildStruct.VoiceStates {
+		//fmt.Printf("%+v\n", vs)
+		if vs.ChannelID == channelID {
+			if vs.UserID != "740819229359472650"{
+				check = true
+			}
+		}
+	}
+	if check == false {
+		disconnectFromVoiceChannel(guildID)
+		return myErr
+	}
+	return nil
+	
 }
